@@ -1,0 +1,18 @@
+garmin:
+  phone: "+4712345678"        # Your phone number in E.164 format
+  session_dir: "./sessions"   # Where credentials are stored
+
+# Character limit per message.
+# Old inReach devices: 160
+# New devices via Hermes API: 1600
+char_limit: 1600
+
+api_keys:
+  openai: ""                  # OpenAI API key for ChatGPT
+  openai_model: "o3-mini"     # OpenAI model to use
+  timezonedb: ""              # TimezoneDB API key (for weather timezone)
+  openrouteservice: ""        # OpenRouteService API key (for hiking routes)
+
+log:
+  level: "info"               # trace, debug, info, warn, error
+  pretty: true                # Human-readable vs JSON
