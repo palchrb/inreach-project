@@ -2,4 +2,4 @@ config.yaml
 sessions/
 data/
 *.exe
-inreach
+/inreach
