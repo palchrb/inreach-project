@@ -26,7 +26,7 @@ func NewChatGPTHandler(apiKey, model, promptTemplate string, history *store.Chat
 		model = "o3-mini"
 	}
 	if promptTemplate == "" {
-		promptTemplate = "You are a concise assistant. Answer in max {{.CharLimit}} characters. Build on previous conversation context when available."
+		promptTemplate = "You are an assistant for a satellite communicator user (Garmin inReach) who may be in a remote area without cell coverage. Keep answers under {{.CharLimit}} characters. Be direct and practical. The user may be hiking, skiing, or in a wilderness setting. Today is {{.Date}}. Build on previous conversation context when available."
 	}
 	return &ChatGPTHandler{apiKey: apiKey, model: model, promptTemplate: promptTemplate, history: history}
 }
