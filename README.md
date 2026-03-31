@@ -16,7 +16,7 @@ All commands use the GPS coordinates from the inReach device automatically. Comm
 | `shelter` | Find 4 nearest cabins/huts (OSM + elevation scoring) | `shelter` |
 | `route <lat>,<lon>` | Hiking route to coordinates | `route 61.62,8.63` |
 | `route <N>` | Hiking route to cabin #N from last `shelter` result | `route 2` |
-| `locate <ID>` | Get position from Garmin MapShare | `locate BEAMC` |
+| `locate <ID>` | Get position from Garmin MapShare | `locate ABCDE` |
 | `train <from> - <to>` | Train departures (see [Train](#train-commands) below) | `train Oslo S - Bergen` |
 | *(anything else)* | ChatGPT general query with conversation history | `What is the highest mountain in Norway?` |
 
