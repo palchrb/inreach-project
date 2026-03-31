@@ -15,16 +15,16 @@ import (
 
 // ShelterHandler handles "shelter" commands.
 type ShelterHandler struct {
-	state     *store.ShelterState
-	elevation *geo.ElevationClient
+	state      *store.ShelterState
+	elevation  *geo.ElevationClient
 	cabinsFile string
 }
 
 // NewShelterHandler creates a new shelter handler.
 func NewShelterHandler(state *store.ShelterState, cabinsFile string) *ShelterHandler {
 	return &ShelterHandler{
-		state:     state,
-		elevation: geo.NewElevationClient(),
+		state:      state,
+		elevation:  geo.NewElevationClient(),
 		cabinsFile: cabinsFile,
 	}
 }
@@ -61,32 +61,48 @@ type hutCandidate struct {
 	ElevationDiff float64
 	TotalScore    float64
 	Source        string
+	ServiceLevel  string
+}
+
+// boundingBoxFilter returns true if the cabin is within ~degRadius degrees of lat/lon.
+// 0.5 degrees ≈ 55km at equator, ~35km in Norway. Fast pre-filter before haversine.
+func inBoundingBox(lat, lon, cabinLat, cabinLon, degRadius float64) bool {
+	return cabinLat >= lat-degRadius && cabinLat <= lat+degRadius &&
+		cabinLon >= lon-degRadius && cabinLon <= lon+degRadius
 }
 
 func (h *ShelterHandler) findTop4Huts(cc *CommandContext, lat, lon float64) (string, []store.ShelterResult, error) {
 	var allHuts []hutCandidate
 
-	// 1. Load cached UT.no cabins
+	// 1. Load cached UT.no cabins (pre-filtered by bounding box)
 	if h.cabinsFile != "" {
 		cabins, err := LoadCachedCabins(h.cabinsFile)
 		if err != nil {
 			cc.Logger.Warn("No cached cabins file, using OSM only", "error", err)
 		} else {
+			var nearby int
 			for _, c := range cabins {
+				// Pre-filter: skip cabins far outside 50km radius (~0.6° at 60°N)
+				if !inBoundingBox(lat, lon, c.Lat, c.Lon, 0.6) {
+					continue
+				}
+				nearby++
 				distance := geo.Haversine(lat, lon, c.Lat, c.Lon)
+				sl := shortServiceLevel(c.ServiceLevel)
 				allHuts = append(allHuts, hutCandidate{
-					Name:     trimName(c.Name),
-					Lat:      c.Lat,
-					Lon:      c.Lon,
-					Distance: distance,
-					Source:   "U",
+					Name:         trimName(c.Name),
+					Lat:          c.Lat,
+					Lon:          c.Lon,
+					Distance:     distance,
+					Source:       "U",
+					ServiceLevel: sl,
 				})
 			}
-			cc.Logger.Debug("Loaded cached cabins", "count", len(cabins))
+			cc.Logger.Debug("Loaded cached cabins", "total", len(cabins), "nearby", nearby)
 		}
 	}
 
-	// 2. Fetch OSM huts (additional huts not in UT.no)
+	// 2. Fetch OSM huts + shelters + emergency (additional not in UT.no)
 	osmHuts, err := fetchOSMHuts(lat, lon, 50000)
 	if err != nil {
 		cc.Logger.Warn("Failed to fetch OSM huts", "error", err)
@@ -138,8 +154,12 @@ func (h *ShelterHandler) findTop4Huts(cc *CommandContext, lat, lon float64) (str
 		if hut.ElevationDiff < 0 {
 			elevSign = ""
 		}
-		line := fmt.Sprintf("%s|%.4f|%.4f|%.1fkm|Δ%s%.0fm|%s",
-			hut.Name, hut.Lat, hut.Lon, hut.Distance, elevSign, hut.ElevationDiff, hut.Source)
+		svc := ""
+		if hut.ServiceLevel != "" {
+			svc = "|" + hut.ServiceLevel
+		}
+		line := fmt.Sprintf("%s|%.4f|%.4f|%.1fkm|Δ%s%.0fm|%s%s",
+			hut.Name, hut.Lat, hut.Lon, hut.Distance, elevSign, hut.ElevationDiff, hut.Source, svc)
 		lines = append(lines, line)
 		storeHuts = append(storeHuts, store.ShelterResult{
 			Name:          hut.Name,
@@ -155,7 +175,12 @@ func (h *ShelterHandler) findTop4Huts(cc *CommandContext, lat, lon float64) (str
 }
 
 func fetchOSMHuts(lat, lon float64, radius int) ([]hutCandidate, error) {
-	query := fmt.Sprintf(`[out:json];node(around:%d,%.4f,%.4f)["tourism"~"alpine_hut|wilderness_hut|chalet|cabin"];out body;`, radius, lat, lon)
+	// Include alpine huts, wilderness huts, cabins, lean-tos, and emergency shelters
+	query := fmt.Sprintf(`[out:json];(
+		node(around:%d,%.4f,%.4f)["tourism"~"alpine_hut|wilderness_hut|chalet|cabin"];
+		node(around:%d,%.4f,%.4f)["shelter_type"="lean_to"];
+		node(around:%d,%.4f,%.4f)["emergency"="yes"]["amenity"="shelter"];
+	);out body;`, radius, lat, lon, radius, lat, lon, radius, lat, lon)
 
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Post("https://overpass-api.de/api/interpreter", "application/x-www-form-urlencoded",
@@ -184,16 +209,42 @@ func fetchOSMHuts(lat, lon float64, radius int) ([]hutCandidate, error) {
 		}
 		name = trimName(name)
 		distance := geo.Haversine(lat, lon, el.Lat, el.Lon)
+
+		// Determine source label based on type
+		source := "O"
+		if el.Tags["emergency"] == "yes" {
+			source = "E"
+		} else if el.Tags["shelter_type"] == "lean_to" {
+			source = "G" // Gapahuk
+		}
+
 		huts = append(huts, hutCandidate{
 			Name:     name,
 			Lat:      el.Lat,
 			Lon:      el.Lon,
 			Distance: distance,
-			Source:   "O",
+			Source:   source,
 		})
 	}
 
 	return huts, nil
+}
+
+// shortServiceLevel abbreviates UT.no service levels for compact display.
+func shortServiceLevel(sl string) string {
+	sl = strings.ToLower(sl)
+	switch {
+	case strings.Contains(sl, "staffed") || strings.Contains(sl, "betjent"):
+		return "B"
+	case strings.Contains(sl, "self-service") || strings.Contains(sl, "selvbetjent"):
+		return "S"
+	case strings.Contains(sl, "no-service") && strings.Contains(sl, "no beds"):
+		return "X"
+	case strings.Contains(sl, "no-service") || strings.Contains(sl, "ubetjent"):
+		return "U"
+	default:
+		return ""
+	}
 }
 
 func removeDuplicateHuts(huts []hutCandidate) []hutCandidate {
