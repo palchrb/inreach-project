@@ -167,7 +167,9 @@ func fetchYrWeather(lat, lon float64, day int, tz *geo.TimezoneData) ([]yrTimese
 }
 
 func adjustWeatherToTimezone(data []yrTimeseries, tz *geo.TimezoneData) {
-	offsetMs := time.Duration(tz.TotalOffsetSeconds()) * time.Second
+	// GMTOffset from TimezoneDB already includes DST when active,
+	// so we use it directly without adding extra DST offset.
+	offsetMs := time.Duration(tz.GMTOffset) * time.Second
 	for i := range data {
 		t, err := time.Parse(time.RFC3339, data[i].Time)
 		if err != nil {
