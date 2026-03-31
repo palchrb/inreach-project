@@ -49,7 +49,7 @@ func New(cfg *config.Config, logger *slog.Logger) *Service {
 		ChatGPT:   command.NewChatGPTHandler(cfg.APIKeys.OpenAI, cfg.APIKeys.OpenAIModel, history),
 		Weather:   command.NewWeatherHandler(cfg.APIKeys.OpenAI, cfg.APIKeys.OpenAIModel, cfg.APIKeys.TimezoneDB),
 		Avalanche: command.NewAvalancheHandler(),
-		Shelter:   command.NewShelterHandler(shelterState),
+		Shelter:   command.NewShelterHandler(shelterState, "data/cabins.json"),
 		Route:     command.NewRouteHandler(cfg.APIKeys.OpenRouteService, shelterState),
 		Train:     command.NewTrainHandler(),
 		MapShare:  command.NewMapShareHandler(),

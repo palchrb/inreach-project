@@ -17,13 +17,15 @@ import (
 type ShelterHandler struct {
 	state     *store.ShelterState
 	elevation *geo.ElevationClient
+	cabinsFile string
 }
 
 // NewShelterHandler creates a new shelter handler.
-func NewShelterHandler(state *store.ShelterState) *ShelterHandler {
+func NewShelterHandler(state *store.ShelterState, cabinsFile string) *ShelterHandler {
 	return &ShelterHandler{
 		state:     state,
 		elevation: geo.NewElevationClient(),
+		cabinsFile: cabinsFile,
 	}
 }
 
@@ -64,7 +66,27 @@ type hutCandidate struct {
 func (h *ShelterHandler) findTop4Huts(cc *CommandContext, lat, lon float64) (string, []store.ShelterResult, error) {
 	var allHuts []hutCandidate
 
-	// Fetch OSM huts
+	// 1. Load cached UT.no cabins
+	if h.cabinsFile != "" {
+		cabins, err := LoadCachedCabins(h.cabinsFile)
+		if err != nil {
+			cc.Logger.Warn("No cached cabins file, using OSM only", "error", err)
+		} else {
+			for _, c := range cabins {
+				distance := geo.Haversine(lat, lon, c.Lat, c.Lon)
+				allHuts = append(allHuts, hutCandidate{
+					Name:     trimName(c.Name),
+					Lat:      c.Lat,
+					Lon:      c.Lon,
+					Distance: distance,
+					Source:   "U",
+				})
+			}
+			cc.Logger.Debug("Loaded cached cabins", "count", len(cabins))
+		}
+	}
+
+	// 2. Fetch OSM huts (additional huts not in UT.no)
 	osmHuts, err := fetchOSMHuts(lat, lon, 50000)
 	if err != nil {
 		cc.Logger.Warn("Failed to fetch OSM huts", "error", err)

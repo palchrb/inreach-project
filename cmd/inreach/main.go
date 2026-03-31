@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/palchrb/inreach-project/internal/command"
 	"github.com/palchrb/inreach-project/internal/config"
 	"github.com/palchrb/inreach-project/internal/service"
 )
@@ -25,6 +26,8 @@ func main() {
 		runLogin()
 	case "run":
 		runService()
+	case "fetch-cabins":
+		runFetchCabins()
 	case "version":
 		fmt.Println("inreach v0.1.0")
 	default:
@@ -37,9 +40,10 @@ func printUsage() {
 	fmt.Println("Usage: inreach <command>")
 	fmt.Println()
 	fmt.Println("Commands:")
-	fmt.Println("  login    Register with Garmin Messenger via SMS OTP")
-	fmt.Println("  run      Start the inReach assistant service")
-	fmt.Println("  version  Print version")
+	fmt.Println("  login         Register with Garmin Messenger via SMS OTP")
+	fmt.Println("  run           Start the inReach assistant service")
+	fmt.Println("  fetch-cabins  Download cabin data from UT.no to data/cabins.json")
+	fmt.Println("  version       Print version")
 }
 
 func loadConfig() *config.Config {
@@ -148,4 +152,23 @@ func runService() {
 	}
 
 	logger.Info("Service stopped")
+}
+
+func runFetchCabins() {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+	outputPath := "data/cabins.json"
+	if len(os.Args) > 2 {
+		outputPath = os.Args[2]
+	}
+
+	// Ensure data directory exists
+	os.MkdirAll("data", 0o755)
+
+	fmt.Printf("Fetching cabins from UT.no to %s...\n", outputPath)
+	if err := command.FetchAndCacheCabins(logger, outputPath); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("Done!")
 }
