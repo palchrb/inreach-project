@@ -4,23 +4,21 @@ A Go service that turns a Garmin inReach satellite communicator into a smart ass
 
 ## Commands
 
+All commands use the GPS coordinates from the inReach device automatically. Commands marked with aliases work in both Norwegian and English.
+
 | Command | Description | Example |
 |---------|-------------|---------|
-| `vær` | Weather forecast (morning/afternoon/evening) | `vær` |
-| `vær detaljert` | Ultra-compact hourly weather (Base85/Base36 encoded) | `vær detaljert` |
-| `vær i morgen` | Tomorrow's weather | `vær i morgen` |
-| `vær i overimorgen` | Day after tomorrow | `vær i overimorgen` |
-| `skred` | Avalanche warning with encoded danger data | `skred` |
-| `shelter` | Find 4 nearest cabins/huts (OSM + elevation) | `shelter` |
+| `weather` / `vær` | Weather forecast (morning/afternoon/evening) | `weather` |
+| `weather detailed` / `vær detaljert` | Ultra-compact hourly weather (Base85/Base36 encoded) | `weather detailed` |
+| `weather tomorrow` / `vær i morgen` | Tomorrow's weather | `weather tomorrow` |
+| `weather day after` / `vær i overimorgen` | Day after tomorrow | `weather day after` |
+| `avalanche` / `skred` | Avalanche warning with encoded danger data | `avalanche` |
+| `shelter` | Find 4 nearest cabins/huts (OSM + elevation scoring) | `shelter` |
 | `route <lat>,<lon>` | Hiking route to coordinates | `route 61.62,8.63` |
 | `route <N>` | Hiking route to cabin #N from last `shelter` result | `route 2` |
-| `train <from> - <to>` | Train departures | `train Oslo S - Bergen` |
-| `train stationboard <station>` | Departure board for a station | `train stationboard Hønefoss` |
-| `bus <from> - <to>` | Bus + train departures | `bus Ustaoset - Oslo 5h` |
 | `locate <ID>` | Get position from Garmin MapShare | `locate BEAMC` |
+| `train <from> - <to>` | Train departures (see [Train](#train-commands) below) | `train Oslo S - Bergen` |
 | *(anything else)* | ChatGPT general query with conversation history | `What is the highest mountain in Norway?` |
-
-All commands use the GPS coordinates from the inReach device automatically.
 
 ## API Keys
 
@@ -186,3 +184,16 @@ internal/
 ```
 
 The service uses Garmin's Hermes API (same as the Garmin Messenger mobile app) for bidirectional satellite messaging over SignalR WebSocket. No email relay needed.
+
+## Train commands
+
+Norwegian public transport lookups via Entur.io.
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `train <from> - <to>` | Train departures | `train Oslo S - Bergen` |
+| `train <from> - <to> <N>h` | Departures N hours from now | `train Asker - Drammen 3h` |
+| `bus <from> - <to>` | Include bus connections | `bus Ustaoset - Oslo` |
+| `train location - <to>` | Nearest station from GPS | `train location - Lillehammer` |
+| `train stationboard <station>` | Departure board | `train stationboard Hønefoss` |
+| `train stationboard <station> to:<dest>` | Filtered departure board | `train stationboard Asker to:Bergen` |
