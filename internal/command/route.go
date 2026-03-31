@@ -48,8 +48,7 @@ func (h *RouteHandler) Handle(cc *CommandContext) ([]string, error) {
 		if idx < 0 || idx >= len(shelterData.Huts) {
 			return []string{fmt.Sprintf("Invalid cabin selection: %d", n)}, nil
 		}
-		startLat = shelterData.Lat
-		startLon = shelterData.Lon
+		// Use current GPS position as start (not the shelter query position)
 		endLat = shelterData.Huts[idx].Lat
 		endLon = shelterData.Huts[idx].Lon
 	} else {
