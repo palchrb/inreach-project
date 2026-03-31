@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/palchrb/inreach-project/internal/command"
@@ -27,6 +28,9 @@ type Service struct {
 	logger    *slog.Logger
 	selfID    string
 	history   *store.ChatHistory
+	startedAt time.Time
+	seen      map[string]bool // processed message IDs
+	seenMu    sync.Mutex
 }
 
 // New creates a new Service.
@@ -69,6 +73,8 @@ func New(cfg *config.Config, logger *slog.Logger) *Service {
 		logger:    logger,
 		selfID:    selfID,
 		history:   history,
+		startedAt: time.Now(),
+		seen:      make(map[string]bool),
 	}
 }
 
@@ -145,6 +151,24 @@ func (s *Service) handleMessage(ctx context.Context, msg gm.MessageModel) {
 	if msg.MessageType != nil && msg.MessageType.IsReaction() {
 		return
 	}
+
+	// Skip messages sent before the service started (prevents replaying old messages on reconnect)
+	if msg.SentAt != nil && msg.SentAt.Before(s.startedAt) {
+		s.logger.Debug("Skipping old message", "messageId", msg.MessageID, "sentAt", msg.SentAt)
+		s.sr.MarkAsDelivered(msg.ConversationID, msg.MessageID)
+		return
+	}
+
+	// Dedup: skip already processed messages (can happen on reconnect)
+	msgID := msg.MessageID.String()
+	s.seenMu.Lock()
+	if s.seen[msgID] {
+		s.seenMu.Unlock()
+		s.logger.Debug("Skipping duplicate message", "messageId", msg.MessageID)
+		return
+	}
+	s.seen[msgID] = true
+	s.seenMu.Unlock()
 
 	// Mark as delivered
 	s.sr.MarkAsDelivered(msg.ConversationID, msg.MessageID)
