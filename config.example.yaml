@@ -7,6 +7,10 @@ garmin:
 # New devices via Hermes API: 1600
 char_limit: 1600
 
+decoder:
+  enabled: true                 # Serve the weather/avalanche decoder PWA
+  listen: ":8080"               # HTTP port for the decoder web UI
+
 api_keys:
   openai: ""                  # OpenAI API key for ChatGPT
   openai_model: "o3-mini"     # OpenAI model to use

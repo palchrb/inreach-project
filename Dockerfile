@@ -16,5 +16,7 @@ COPY --from=builder /build/inreach /usr/local/bin/inreach
 
 WORKDIR /app
 
+EXPOSE 8080
+
 ENTRYPOINT ["inreach"]
 CMD ["run"]

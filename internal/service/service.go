@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/palchrb/inreach-project/internal/command"
 	"github.com/palchrb/inreach-project/internal/config"
+	"github.com/palchrb/inreach-project/internal/decoder"
 	gm "github.com/palchrb/inreach-project/internal/hermes"
 	"github.com/palchrb/inreach-project/internal/store"
 )
@@ -87,6 +89,21 @@ func (s *Service) Run(ctx context.Context) error {
 		return fmt.Errorf("session validation failed: %w", err)
 	}
 	s.logger.Info("Session validated", "phone", s.cfg.Garmin.Phone)
+
+	// Start decoder web UI if enabled
+	if s.cfg.Decoder.Enabled {
+		go func() {
+			s.logger.Info("Starting decoder web UI", "listen", s.cfg.Decoder.Listen)
+			srv := &http.Server{Addr: s.cfg.Decoder.Listen, Handler: decoder.Handler()}
+			go func() {
+				<-ctx.Done()
+				srv.Close()
+			}()
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				s.logger.Error("Decoder web UI error", "error", err)
+			}
+		}()
+	}
 
 	// Register message handler
 	s.sr.OnMessage(func(msg gm.MessageModel) {

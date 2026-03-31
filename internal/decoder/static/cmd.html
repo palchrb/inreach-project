@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>InReach Commands</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; background-color: #f0f0f0; text-align: center; }
+        h1 { color: #333; }
+        nav { width: 100%; background: #007bff; padding: 10px 0; display: flex; justify-content: center; overflow-x: auto; white-space: nowrap; }
+        nav ul { display: flex; gap: 10px; list-style: none; padding: 0; margin: 0; }
+        nav ul li a { color: white; text-decoration: none; font-size: 16px; font-weight: bold; padding: 8px 15px; border-radius: 5px; transition: background 0.3s; }
+        nav ul li a:hover { background: #0056b3; }
+        .cmd-container { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0px 0px 10px rgba(0,0,0,0.1); margin: 10px; width: 90%; max-width: 600px; text-align: left; }
+        .cmd-title { font-weight: bold; color: #007bff; font-size: 18px; }
+        .cmd-example { font-family: monospace; background: #eee; padding: 5px; border-radius: 5px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="index.html">Weather</a></li>
+            <li><a href="avalanche.html">Avalanche</a></li>
+            <li><a href="cmd.html">Commands</a></li>
+        </ul>
+    </nav>
+    <h1>InReach Commands</h1>
+    <p>Available commands for satellite messages.</p>
+
+    <div class="cmd-container">
+        <p class="cmd-title">Weather forecast</p>
+        <p><span class="cmd-example">weather</span> or <span class="cmd-example">vær</span> - Today's forecast</p>
+        <p><span class="cmd-example">weather detailed</span> - Hourly encoded forecast</p>
+        <p><span class="cmd-example">weather tomorrow</span> - Tomorrow's forecast</p>
+    </div>
+
+    <div class="cmd-container">
+        <p class="cmd-title">Avalanche warning</p>
+        <p><span class="cmd-example">avalanche</span> or <span class="cmd-example">skred</span> - Encoded avalanche data for your position</p>
+    </div>
+
+    <div class="cmd-container">
+        <p class="cmd-title">Shelter (nearest cabins)</p>
+        <p><span class="cmd-example">shelter</span> - Find the 4 nearest cabins/huts from your GPS position</p>
+    </div>
+
+    <div class="cmd-container">
+        <p class="cmd-title">Hiking route</p>
+        <p><span class="cmd-example">route 61.62,8.63</span> - Route to coordinates</p>
+        <p><span class="cmd-example">route 2</span> - Route to cabin #2 from last shelter result</p>
+    </div>
+
+    <div class="cmd-container">
+        <p class="cmd-title">Locate (MapShare)</p>
+        <p><span class="cmd-example">locate BEAMC</span> - Get latest position from a Garmin MapShare feed</p>
+    </div>
+
+    <div class="cmd-container">
+        <p class="cmd-title">ChatGPT (general questions)</p>
+        <p>Any message that doesn't match a command is sent to ChatGPT. Conversation history is kept for 60 minutes.</p>
+        <p><span class="cmd-example">What is the highest mountain in Norway?</span></p>
+    </div>
+
+    <div class="cmd-container">
+        <p class="cmd-title">Train departures</p>
+        <p><span class="cmd-example">train Oslo S - Bergen</span> - Next departures</p>
+        <p><span class="cmd-example">train location - Lillehammer</span> - From nearest station</p>
+        <p><span class="cmd-example">train stationboard Hønefoss</span> - Departure board</p>
+    </div>
+</body>
+</html>
