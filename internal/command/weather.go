@@ -34,11 +34,11 @@ func (h *WeatherHandler) Handle(cc *CommandContext) ([]string, error) {
 	lat, lon := *cc.Lat, *cc.Lon
 	argsLower := strings.ToLower(cc.Args)
 
-	// Determine day
+	// Determine day (Norwegian + English)
 	day := 1
-	if strings.Contains(argsLower, "i morgen") {
+	if strings.Contains(argsLower, "i morgen") || strings.Contains(argsLower, "tomorrow") {
 		day = 2
-	} else if strings.Contains(argsLower, "i overimorgen") {
+	} else if strings.Contains(argsLower, "i overimorgen") || strings.Contains(argsLower, "day after") {
 		day = 3
 	}
 
@@ -62,7 +62,7 @@ func (h *WeatherHandler) Handle(cc *CommandContext) ([]string, error) {
 	// Adjust to local timezone
 	adjustWeatherToTimezone(weatherData, tzData)
 
-	if strings.Contains(argsLower, "detaljert") {
+	if strings.Contains(argsLower, "detaljert") || strings.Contains(argsLower, "detailed") {
 		// Detailed weather: ultra-compact Base85/Base36 encoding
 		msg := generateUltraCompactWeather(weatherData, tzData.CityName)
 		return []string{msg}, nil

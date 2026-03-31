@@ -34,10 +34,12 @@ func NewRouter(handlers RouterHandlers) *Router {
 		r.addRoute(`(?i)^shelter`, handlers.Shelter, func(msg string, m []string) string { return "" })
 	}
 	if handlers.Weather != nil {
-		r.addRoute(`(?i)^vær`, handlers.Weather, func(msg string, m []string) string {
-			// Pass the full message so handler can check for "detaljert", "i morgen" etc.
-			return strings.TrimSpace(regexp.MustCompile(`(?i)^vær\s*`).ReplaceAllString(msg, ""))
-		})
+		weatherArgFunc := func(msg string, m []string) string {
+			// Strip command prefix, pass rest so handler can check "detaljert", "i morgen" etc.
+			return strings.TrimSpace(regexp.MustCompile(`(?i)^(vær|weather)\s*`).ReplaceAllString(msg, ""))
+		}
+		r.addRoute(`(?i)^vær`, handlers.Weather, weatherArgFunc)
+		r.addRoute(`(?i)^weather`, handlers.Weather, weatherArgFunc)
 	}
 	if handlers.Train != nil {
 		r.addRoute(`(?i)^train\s+stationboard`, handlers.Train, func(msg string, m []string) string {
@@ -49,6 +51,7 @@ func NewRouter(handlers RouterHandlers) *Router {
 	}
 	if handlers.Avalanche != nil {
 		r.addRoute(`(?i)^skred`, handlers.Avalanche, func(msg string, m []string) string { return "" })
+		r.addRoute(`(?i)^avalanche`, handlers.Avalanche, func(msg string, m []string) string { return "" })
 	}
 	if handlers.Route != nil {
 		// Route to coordinates: "route lat,lon"
