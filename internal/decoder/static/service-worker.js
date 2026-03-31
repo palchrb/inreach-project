@@ -1,4 +1,4 @@
-const CACHE_NAME = "inreach-decoder-v1";
+const CACHE_NAME = "inreach-decoder-v2";
 
 const iconList = [
   "01d","01n","01m","02d","02n","02m","03d","03n","03m","04",
@@ -12,6 +12,7 @@ const iconList = [
 ];
 
 const baseResources = [
+  "./",                 // Root URL -> index.html
   "index.html", "avalanche.html", "cmd.html",
   "script.js", "script2.js", "manifest.json", "icon.png"
 ];
@@ -19,13 +20,18 @@ const baseResources = [
 const iconResources = iconList.map(icon => `svg/${icon}.svg`);
 const resourcesToCache = [...baseResources, ...iconResources];
 
-// IndexedDB fallback
+// ---- IndexedDB for triple-redundant storage ----
+
 function openDatabase() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open("inreach-decoder-db", 1);
+    const request = indexedDB.open("inreach-decoder-db", 2);
     request.onupgradeneeded = (e) => {
-      if (!e.target.result.objectStoreNames.contains("files")) {
-        e.target.result.createObjectStore("files");
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains("files")) {
+        db.createObjectStore("files");
+      }
+      if (!db.objectStoreNames.contains("history")) {
+        db.createObjectStore("history");
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -57,7 +63,8 @@ async function getFromIndexedDB(url) {
   });
 }
 
-// Install: cache all resources
+// ---- Install: cache all resources in both Cache API and IndexedDB ----
+
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
@@ -76,7 +83,8 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
-// Activate: clean old caches
+// ---- Activate: clean old caches, claim clients ----
+
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then(names =>
@@ -85,20 +93,33 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch: cache first, then network, then IndexedDB
+// ---- Fetch: Cache -> Network -> IndexedDB (triple fallback) ----
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
+
       return fetch(event.request).then(async (response) => {
         if (response && response.ok && response.type === "basic") {
+          // Store in both cache layers for redundancy
           saveToIndexedDB(event.request.url, response.clone()).catch(() => {});
           const cache = await caches.open(CACHE_NAME);
           cache.put(event.request, response.clone());
         }
         return response;
-      }).catch(() => getFromIndexedDB(event.request.url).catch(() => {}));
+      }).catch(() => {
+        // Network failed - try IndexedDB
+        return getFromIndexedDB(event.request.url).catch(() => {
+          // Try with relative path as well (URL vs path mismatch)
+          const path = new URL(event.request.url).pathname.replace(/^\//, "");
+          return getFromIndexedDB(path).catch(() => {
+            console.warn("All fetch strategies failed for:", event.request.url);
+          });
+        });
+      });
     })
   );
 });

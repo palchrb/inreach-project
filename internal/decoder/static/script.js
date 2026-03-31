@@ -10,12 +10,21 @@ const weatherIconMapping = [
     "44d", "44n", "44m", "45d", "45n", "45m", "46", "47", "48", "49", "50"
 ];
 
-// Register service worker
+// Register service worker and request persistent storage
 if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-        navigator.serviceWorker.register("service-worker.js")
-            .then(() => console.log("Service Worker registered."))
-            .catch(err => console.error("SW registration error:", err));
+    window.addEventListener("load", async () => {
+        try {
+            await navigator.serviceWorker.register("service-worker.js");
+            console.log("Service Worker registered.");
+        } catch (err) {
+            console.error("SW registration error:", err);
+        }
+
+        // Request persistent storage so the browser won't evict our cache
+        if (navigator.storage && navigator.storage.persist) {
+            const granted = await navigator.storage.persist();
+            console.log("Persistent storage:", granted ? "granted" : "denied");
+        }
     });
 }
 
@@ -71,27 +80,76 @@ function decodeMessage(encodedMessage) {
     return { cityName, date: decodedDate, data: weatherData };
 }
 
-// localStorage history
+// ---- Message history: localStorage + IndexedDB for redundancy ----
+
 const HISTORY_KEY = "weatherDecoderHistory";
 const MAX_HISTORY = 10;
 
+function openHistoryDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open("inreach-decoder-db", 2);
+        req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains("files")) db.createObjectStore("files");
+            if (!db.objectStoreNames.contains("history")) db.createObjectStore("history");
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject("IndexedDB error");
+    });
+}
+
+async function saveHistoryToIDB(history) {
+    try {
+        const db = await openHistoryDB();
+        const tx = db.transaction("history", "readwrite");
+        tx.objectStore("history").put(JSON.stringify(history), HISTORY_KEY);
+    } catch (e) { console.warn("IDB history save failed:", e); }
+}
+
+async function loadHistoryFromIDB() {
+    try {
+        const db = await openHistoryDB();
+        return new Promise((resolve) => {
+            const tx = db.transaction("history", "readonly");
+            const req = tx.objectStore("history").get(HISTORY_KEY);
+            req.onsuccess = () => resolve(req.result ? JSON.parse(req.result) : []);
+            req.onerror = () => resolve([]);
+        });
+    } catch (e) { return []; }
+}
+
+function getHistory() {
+    try {
+        return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+    } catch (e) { return []; }
+}
+
 function saveToHistory(message) {
-    let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-    // Remove duplicate if exists
+    let history = getHistory();
     history = history.filter(h => h.message !== message);
-    // Add to front
     const label = message.split(";")[0] + " " + message.split(";")[1];
     history.unshift({ message, label, timestamp: Date.now() });
-    // Keep max
     if (history.length > MAX_HISTORY) history = history.slice(0, MAX_HISTORY);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    // Save to both localStorage and IndexedDB
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch (e) {}
+    saveHistoryToIDB(history);
     renderHistory();
 }
 
-function renderHistory() {
+async function renderHistory() {
     const container = document.getElementById("historyContainer");
     if (!container) return;
-    const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+
+    // Try localStorage first, fall back to IndexedDB
+    let history = getHistory();
+    if (history.length === 0) {
+        history = await loadHistoryFromIDB();
+        // Restore to localStorage if recovered from IDB
+        if (history.length > 0) {
+            try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch (e) {}
+        }
+    }
+
     if (history.length === 0) { container.innerHTML = ""; return; }
 
     container.innerHTML = "<small>Recent:</small> " + history.map(h =>
