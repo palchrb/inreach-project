@@ -32,6 +32,7 @@ type GarminConfig struct {
 type APIKeysConfig struct {
 	OpenAI           string `yaml:"openai"`
 	OpenAIModel      string `yaml:"openai_model"`
+	OpenAIPrompt     string `yaml:"openai_prompt"`
 	TimezoneDB       string `yaml:"timezonedb"`
 	OpenRouteService string `yaml:"openrouteservice"`
 }
@@ -54,7 +55,8 @@ func DefaultConfig() *Config {
 			Listen:  ":8080",
 		},
 		APIKeys: APIKeysConfig{
-			OpenAIModel: "o3-mini",
+			OpenAIModel:  "o3-mini",
+			OpenAIPrompt: "You are an assistant for a satellite communicator user (Garmin inReach) who may be in a remote area without cell coverage. Keep answers under {{.CharLimit}} characters. Be direct and practical. The user may be hiking, skiing, or in a wilderness setting. Today is {{.Date}}. Build on previous conversation context when available.",
 		},
 		Log: LogConfig{
 			Level:  "info",

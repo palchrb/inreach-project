@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/palchrb/inreach-project/internal/store"
@@ -13,17 +14,21 @@ import (
 
 // ChatGPTHandler handles general queries via OpenAI API.
 type ChatGPTHandler struct {
-	apiKey  string
-	model   string
-	history *store.ChatHistory
+	apiKey       string
+	model        string
+	promptTemplate string
+	history      *store.ChatHistory
 }
 
 // NewChatGPTHandler creates a new ChatGPT handler.
-func NewChatGPTHandler(apiKey, model string, history *store.ChatHistory) *ChatGPTHandler {
+func NewChatGPTHandler(apiKey, model, promptTemplate string, history *store.ChatHistory) *ChatGPTHandler {
 	if model == "" {
 		model = "o3-mini"
 	}
-	return &ChatGPTHandler{apiKey: apiKey, model: model, history: history}
+	if promptTemplate == "" {
+		promptTemplate = "You are an assistant for a satellite communicator user (Garmin inReach) who may be in a remote area without cell coverage. Keep answers under {{.CharLimit}} characters. Be direct and practical. The user may be hiking, skiing, or in a wilderness setting. Today is {{.Date}}. Build on previous conversation context when available."
+	}
+	return &ChatGPTHandler{apiKey: apiKey, model: model, promptTemplate: promptTemplate, history: history}
 }
 
 func (h *ChatGPTHandler) Name() string { return "chatgpt" }
@@ -39,7 +44,9 @@ func (h *ChatGPTHandler) Handle(cc *CommandContext) ([]string, error) {
 	recentMsgs := h.history.GetRecentMessages(convID, 5)
 
 	today := time.Now().Format("2006-01-02")
-	systemPrompt := fmt.Sprintf("Dagens dato er %s. Du er en generell assistent som hjelper brukere med korte og konsise svar på maks %d tegn og klarer å bygge videre på tidligere kontekst.", today, cc.CharLimit)
+	// Build system prompt from template, replacing {{.CharLimit}} and {{.Date}}
+	systemPrompt := strings.ReplaceAll(h.promptTemplate, "{{.CharLimit}}", fmt.Sprintf("%d", cc.CharLimit))
+	systemPrompt = strings.ReplaceAll(systemPrompt, "{{.Date}}", today)
 
 	messages := []map[string]string{
 		{"role": "system", "content": systemPrompt},
