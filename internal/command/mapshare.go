@@ -24,7 +24,8 @@ func (h *MapShareHandler) Handle(cc *CommandContext) ([]string, error) {
 
 	result, err := formatMapShareOutput(identifier)
 	if err != nil {
-		return nil, err
+		cc.Logger.Error("MapShare error", "identifier", identifier, "error", err)
+		return []string{fmt.Sprintf("MapShare error: %v", err)}, nil
 	}
 
 	return []string{result}, nil
@@ -33,7 +34,7 @@ func (h *MapShareHandler) Handle(cc *CommandContext) ([]string, error) {
 func formatMapShareOutput(identifier string) (string, error) {
 	data, err := fetchAndParseMapShareKML(identifier)
 	if err != nil {
-		return "Ingen data tilgjengelig.", nil
+		return "", err
 	}
 
 	name := data.Name
@@ -83,46 +84,73 @@ type mapShareData struct {
 }
 
 func fetchAndParseMapShareKML(identifier string) (*mapShareData, error) {
-	url := "https://share.garmin.com/Feed/Share/" + identifier
+	kmlURL := "https://share.garmin.com/Feed/Share/" + identifier
 
 	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Get(url)
+	req, err := http.NewRequest("GET", kmlURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("User-Agent", "InReachAssistant/1.0")
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetching KML: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Parse KML XML
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("MapShare returned HTTP %d for %s", resp.StatusCode, identifier)
+	}
+
+	// KML uses default namespace http://www.opengis.net/kml/2.2
+	// Go's encoding/xml requires fully qualified names when a namespace is present.
+	type kmlData struct {
+		Name  string `xml:"name,attr"`
+		Value string `xml:"value"`
+	}
 	var kml struct {
-		XMLName  xml.Name `xml:"kml"`
 		Document struct {
 			Folder struct {
 				Placemarks []struct {
-					Name      string `xml:"name"`
+					Name      string `xml:"http://www.opengis.net/kml/2.2 name"`
 					TimeStamp struct {
-						When string `xml:"when"`
-					} `xml:"TimeStamp"`
+						When string `xml:"http://www.opengis.net/kml/2.2 when"`
+					} `xml:"http://www.opengis.net/kml/2.2 TimeStamp"`
 					Point struct {
-						Coordinates string `xml:"coordinates"`
-					} `xml:"Point"`
+						Coordinates string `xml:"http://www.opengis.net/kml/2.2 coordinates"`
+					} `xml:"http://www.opengis.net/kml/2.2 Point"`
 					ExtendedData struct {
-						Data []struct {
-							Name  string `xml:"name,attr"`
-							Value string `xml:"value"`
-						} `xml:"Data"`
-					} `xml:"ExtendedData"`
-				} `xml:"Placemark"`
-			} `xml:"Folder"`
-		} `xml:"Document"`
+						Data []kmlData `xml:"http://www.opengis.net/kml/2.2 Data"`
+					} `xml:"http://www.opengis.net/kml/2.2 ExtendedData"`
+				} `xml:"http://www.opengis.net/kml/2.2 Placemark"`
+			} `xml:"http://www.opengis.net/kml/2.2 Folder"`
+		} `xml:"http://www.opengis.net/kml/2.2 Document"`
 	}
-
 	if err := xml.NewDecoder(resp.Body).Decode(&kml); err != nil {
 		return nil, fmt.Errorf("parsing KML: %w", err)
 	}
 
-	placemarks := kml.Document.Folder.Placemarks
+	// Filter to placemarks that have a Point (skip LineString track logs)
+	var placemarks []struct {
+		Name      string `xml:"http://www.opengis.net/kml/2.2 name"`
+		TimeStamp struct {
+			When string `xml:"http://www.opengis.net/kml/2.2 when"`
+		} `xml:"http://www.opengis.net/kml/2.2 TimeStamp"`
+		Point struct {
+			Coordinates string `xml:"http://www.opengis.net/kml/2.2 coordinates"`
+		} `xml:"http://www.opengis.net/kml/2.2 Point"`
+		ExtendedData struct {
+			Data []kmlData `xml:"http://www.opengis.net/kml/2.2 Data"`
+		} `xml:"http://www.opengis.net/kml/2.2 ExtendedData"`
+	}
+	for _, pm := range kml.Document.Folder.Placemarks {
+		if strings.TrimSpace(pm.Point.Coordinates) != "" {
+			placemarks = append(placemarks, pm)
+		}
+	}
 	if len(placemarks) == 0 {
-		return nil, fmt.Errorf("no placemarks found")
+		return nil, fmt.Errorf("no placemarks with coordinates found")
 	}
 
 	// Find latest placemark by timestamp

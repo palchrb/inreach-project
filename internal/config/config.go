@@ -9,10 +9,17 @@ import (
 
 // Config is the top-level configuration.
 type Config struct {
-	Garmin   GarminConfig   `yaml:"garmin"`
+	Garmin    GarminConfig  `yaml:"garmin"`
 	CharLimit int           `yaml:"char_limit"`
-	APIKeys  APIKeysConfig  `yaml:"api_keys"`
-	Log      LogConfig      `yaml:"log"`
+	Decoder   DecoderConfig `yaml:"decoder"`
+	APIKeys   APIKeysConfig `yaml:"api_keys"`
+	Log       LogConfig     `yaml:"log"`
+}
+
+// DecoderConfig configures the embedded decoder web UI.
+type DecoderConfig struct {
+	Enabled bool   `yaml:"enabled"`
+	Listen  string `yaml:"listen"`
 }
 
 // GarminConfig holds Garmin Hermes connection settings.
@@ -42,6 +49,10 @@ func DefaultConfig() *Config {
 			SessionDir: "./sessions",
 		},
 		CharLimit: 1600,
+		Decoder: DecoderConfig{
+			Enabled: true,
+			Listen:  ":8080",
+		},
 		APIKeys: APIKeysConfig{
 			OpenAIModel: "o3-mini",
 		},

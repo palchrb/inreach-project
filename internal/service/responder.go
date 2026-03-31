@@ -36,16 +36,6 @@ func (r *Responder) Send(ctx context.Context, msg gm.MessageModel, parts []strin
 		allParts = append(allParts, split...)
 	}
 
-	// Add part numbers if multiple
-	if len(allParts) > 1 {
-		for i := range allParts {
-			suffix := fmt.Sprintf(" (%d/%d)", i+1, len(allParts))
-			if len(allParts[i])+len(suffix) <= r.charLimit {
-				allParts[i] += suffix
-			}
-		}
-	}
-
 	for i, part := range allParts {
 		r.logger.Info("Sending response", "part", i+1, "total", len(allParts), "length", len(part))
 		_, err := r.api.SendMessage(ctx, to, part)

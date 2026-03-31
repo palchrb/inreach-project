@@ -49,8 +49,8 @@ These APIs require **no key** (open/free):
 Create a directory for the service and add your config file:
 
 ```bash
-mkdir -p ~/inreach/sessions ~/inreach/data
-cd ~/inreach
+mkdir -p /srv/docker/inreach/sessions /srv/docker/inreach/data
+cd /srv/docker/inreach
 ```
 
 Create `config.yaml`:
@@ -61,6 +61,10 @@ garmin:
   session_dir: "/app/sessions"
 
 char_limit: 1600              # 1600 for new devices, 160 for old inReach
+
+decoder:
+  enabled: true               # Serve weather/avalanche decoder PWA
+  listen: ":8080"             # HTTP port for the decoder web UI
 
 api_keys:
   openai: "sk-..."
@@ -79,10 +83,12 @@ log:
 
 Before running the service, you need to register your phone number with Garmin's Hermes API. This sends an SMS OTP to your phone:
 
+All `docker run` commands below assume you are in the directory containing `config.yaml`. The `$(pwd)` expands to your current working directory.
+
 ```bash
 docker run -it --rm \
-  -v ~/inreach/config.yaml:/app/config.yaml:ro \
-  -v ~/inreach/sessions:/app/sessions \
+  -v $(pwd)/config.yaml:/app/config.yaml:ro \
+  -v $(pwd)/sessions:/app/sessions \
   ghcr.io/palchrb/inreach-project:latest \
   login
 ```
@@ -95,9 +101,10 @@ You will be prompted to enter the OTP code from the SMS. Once confirmed, credent
 docker run -d \
   --name inreach \
   --restart unless-stopped \
-  -v ~/inreach/config.yaml:/app/config.yaml:ro \
-  -v ~/inreach/sessions:/app/sessions \
-  -v ~/inreach/data:/app/data \
+  -p 8080:8080 \
+  -v $(pwd)/config.yaml:/app/config.yaml:ro \
+  -v $(pwd)/sessions:/app/sessions \
+  -v $(pwd)/data:/app/data \
   ghcr.io/palchrb/inreach-project:latest
 ```
 
@@ -105,6 +112,7 @@ This starts the service in the background. It will:
 - Connect to Garmin Messenger via WebSocket
 - Listen for incoming satellite messages
 - Process commands and send responses back
+- Serve the decoder PWA at `http://your-server:8080`
 
 ### 5. Check logs
 
@@ -128,6 +136,8 @@ services:
     image: ghcr.io/palchrb/inreach-project:latest
     container_name: inreach
     restart: unless-stopped
+    ports:
+      - "8080:8080"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ./sessions:/app/sessions
@@ -153,6 +163,19 @@ docker compose logs -f
 docker pull ghcr.io/palchrb/inreach-project:latest
 docker compose down && docker compose up -d
 ```
+
+## Decoder PWA
+
+The service includes a built-in weather and avalanche decoder web app. After starting the service, open `http://your-server:8080` in your browser.
+
+The decoder is a Progressive Web App (PWA) — install it to your phone's home screen and it works fully offline after the first load. This is useful when you're back from a trip and need to decode messages without internet.
+
+Features:
+- **Weather decoder**: Paste the encoded `vær detaljert` message to see hourly weather with icons
+- **Avalanche decoder**: Paste the encoded `skred` message to see danger levels and problems
+- **Command reference**: Quick overview of all available commands
+- **Offline support**: Service worker + IndexedDB cache all resources
+- **Message history**: Recent decoded messages are saved in localStorage
 
 ## Building from source
 
