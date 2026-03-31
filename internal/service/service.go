@@ -47,7 +47,7 @@ func New(cfg *config.Config, logger *slog.Logger) *Service {
 
 	// Initialize handlers
 	handlers := RouterHandlers{
-		ChatGPT:   command.NewChatGPTHandler(cfg.APIKeys.OpenAI, cfg.APIKeys.OpenAIModel, history),
+		ChatGPT:   command.NewChatGPTHandler(cfg.APIKeys.OpenAI, cfg.APIKeys.OpenAIModel, cfg.APIKeys.OpenAIPrompt, history),
 		Weather:   command.NewWeatherHandler(cfg.APIKeys.OpenAI, cfg.APIKeys.OpenAIModel, cfg.APIKeys.TimezoneDB),
 		Avalanche: command.NewAvalancheHandler(),
 		Shelter:   command.NewShelterHandler(shelterState, "data/cabins.json"),

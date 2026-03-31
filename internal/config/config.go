@@ -32,6 +32,7 @@ type GarminConfig struct {
 type APIKeysConfig struct {
 	OpenAI           string `yaml:"openai"`
 	OpenAIModel      string `yaml:"openai_model"`
+	OpenAIPrompt     string `yaml:"openai_prompt"`
 	TimezoneDB       string `yaml:"timezonedb"`
 	OpenRouteService string `yaml:"openrouteservice"`
 }
@@ -54,7 +55,8 @@ func DefaultConfig() *Config {
 			Listen:  ":8080",
 		},
 		APIKeys: APIKeysConfig{
-			OpenAIModel: "o3-mini",
+			OpenAIModel:  "o3-mini",
+			OpenAIPrompt: "You are a concise assistant. Answer in max {{.CharLimit}} characters. Build on previous conversation context when available.",
 		},
 		Log: LogConfig{
 			Level:  "info",
