@@ -209,7 +209,7 @@ func (s *Service) handleMessage(ctx context.Context, msg gm.MessageModel) {
 }
 
 const cabinsPath = "data/cabins.json"
-const cabinsMaxAge = 7 * 24 * time.Hour
+const cabinsMaxAge = 30 * 24 * time.Hour
 
 func (s *Service) refreshCabinCacheIfNeeded() {
 	info, err := os.Stat(cabinsPath)

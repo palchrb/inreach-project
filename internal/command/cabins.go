@@ -54,7 +54,7 @@ func FetchAndCacheCabins(logger *slog.Logger, outputPath string) error {
 		variables := map[string]interface{}{
 			"input": map[string]interface{}{
 				"pageOptions": map[string]interface{}{
-					"limit":            50,
+					"limit":            500,
 					"afterCursor":      afterCursor,
 					"orderByDirection": "DESC",
 					"orderBy":          "ID",
