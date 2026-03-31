@@ -49,8 +49,8 @@ These APIs require **no key** (open/free):
 Create a directory for the service and add your config file:
 
 ```bash
-mkdir -p ~/inreach/sessions ~/inreach/data
-cd ~/inreach
+mkdir -p /srv/docker/inreach/sessions /srv/docker/inreach/data
+cd /srv/docker/inreach
 ```
 
 Create `config.yaml`:
@@ -79,10 +79,12 @@ log:
 
 Before running the service, you need to register your phone number with Garmin's Hermes API. This sends an SMS OTP to your phone:
 
+All `docker run` commands below assume you are in the directory containing `config.yaml`. The `$(pwd)` expands to your current working directory.
+
 ```bash
 docker run -it --rm \
-  -v ~/inreach/config.yaml:/app/config.yaml:ro \
-  -v ~/inreach/sessions:/app/sessions \
+  -v $(pwd)/config.yaml:/app/config.yaml:ro \
+  -v $(pwd)/sessions:/app/sessions \
   ghcr.io/palchrb/inreach-project:latest \
   login
 ```
@@ -95,9 +97,9 @@ You will be prompted to enter the OTP code from the SMS. Once confirmed, credent
 docker run -d \
   --name inreach \
   --restart unless-stopped \
-  -v ~/inreach/config.yaml:/app/config.yaml:ro \
-  -v ~/inreach/sessions:/app/sessions \
-  -v ~/inreach/data:/app/data \
+  -v $(pwd)/config.yaml:/app/config.yaml:ro \
+  -v $(pwd)/sessions:/app/sessions \
+  -v $(pwd)/data:/app/data \
   ghcr.io/palchrb/inreach-project:latest
 ```
 
