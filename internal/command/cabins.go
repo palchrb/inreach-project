@@ -12,7 +12,7 @@ import (
 
 // CabinEntry represents a cached cabin from UT.no.
 type CabinEntry struct {
-	ID           string  `json:"id"`
+	ID           int     `json:"id"`
 	Name         string  `json:"name"`
 	Lat          float64 `json:"lat"`
 	Lon          float64 `json:"lon"`
@@ -89,7 +89,7 @@ func FetchAndCacheCabins(logger *slog.Logger, outputPath string) error {
 					} `json:"pageInfo"`
 					Edges []struct {
 						Node struct {
-							ID           string `json:"id"`
+							ID           int    `json:"id"`
 							Name         string `json:"name"`
 							ServiceLevel string `json:"serviceLevel"`
 							Owner        *struct {
