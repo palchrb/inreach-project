@@ -1,6 +1,6 @@
 # inreach-project
 
-A Go service that turns a Garmin inReach satellite communicator into a smart assistant. It connects to Garmin's Hermes messaging API via SignalR WebSocket, receives satellite messages in real time, and responds with weather forecasts, avalanche warnings, cabin locations, hiking routes, train schedules, and general ChatGPT answers.
+A Go service that turns a Garmin inReach satellite communicator into a smart assistant. It is mainly intended for users in Norway, as it uses Norwegian services for weather, avalanches and transport. It connects to Garmin's Hermes messaging API via SignalR WebSocket, receives satellite messages in real time, and responds with weather forecasts, avalanche warnings, cabin locations, hiking routes, train schedules, and general ChatGPT answers.
 
 ## Commands
 
@@ -41,7 +41,7 @@ These APIs require **no key** (open/free):
 ### 1. Prerequisites
 
 - Docker installed on your server
-- A phone number that can receive SMS (for Garmin Messenger registration)
+- A phone number that can receive SMS (for Garmin Messenger registration) Ideally this should not be your own phone number and rather a phone number that represents the inreach assistant, as you will need to send messages from your own garmin messenger - to THIS phone number's garmin messenger account.
 - API keys (see table above)
 
 ### 2. Create configuration
