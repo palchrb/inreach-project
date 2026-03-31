@@ -113,6 +113,10 @@ func (h *ShelterHandler) findTop4Huts(cc *CommandContext, lat, lon float64) (str
 	// Remove duplicates
 	allHuts = removeDuplicateHuts(allHuts)
 
+	if len(allHuts) == 0 {
+		return "No cabins found nearby.", nil, nil
+	}
+
 	// Sort by distance and shortlist
 	sort.Slice(allHuts, func(i, j int) bool { return allHuts[i].Distance < allHuts[j].Distance })
 	if len(allHuts) > 20 {
@@ -189,6 +193,10 @@ func fetchOSMHuts(lat, lon float64, radius int) ([]hutCandidate, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("Overpass API returned HTTP %d", resp.StatusCode)
+	}
 
 	var result struct {
 		Elements []struct {
