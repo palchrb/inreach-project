@@ -69,6 +69,7 @@ decoder:
 api_keys:
   openai: "sk-..."
   openai_model: "o3-mini"
+  openai_prompt: "You are an assistant for a satellite communicator user (Garmin inReach) who may be in a remote area without cell coverage. Keep answers under {{.CharLimit}} characters. Be direct and practical. The user may be hiking, skiing, or in a wilderness setting. Today is {{.Date}}. Build on previous conversation context when available."
   timezonedb: "YOUR_KEY"
   openrouteservice: "YOUR_KEY"
 
