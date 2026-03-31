@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -83,6 +84,9 @@ func (s *Service) Resume(ctx context.Context) error {
 
 // Run starts the service and blocks until ctx is cancelled.
 func (s *Service) Run(ctx context.Context) error {
+	// Auto-refresh cabin cache if missing or older than 7 days
+	s.refreshCabinCacheIfNeeded()
+
 	// Validate session with a lightweight API call
 	_, err := s.api.GetNetworkProperties(ctx)
 	if err != nil {
@@ -201,5 +205,27 @@ func (s *Service) handleMessage(ctx context.Context, msg gm.MessageModel) {
 	// Send response
 	if err := s.responder.Send(ctx, msg, parts); err != nil {
 		s.logger.Error("Failed to send response", "error", err)
+	}
+}
+
+const cabinsPath = "data/cabins.json"
+const cabinsMaxAge = 7 * 24 * time.Hour
+
+func (s *Service) refreshCabinCacheIfNeeded() {
+	info, err := os.Stat(cabinsPath)
+	if err == nil && time.Since(info.ModTime()) < cabinsMaxAge {
+		s.logger.Debug("Cabin cache is fresh", "age", time.Since(info.ModTime()).Round(time.Hour))
+		return
+	}
+
+	if err != nil {
+		s.logger.Info("No cabin cache found, fetching from UT.no...")
+	} else {
+		s.logger.Info("Cabin cache is stale, refreshing from UT.no...", "age", time.Since(info.ModTime()).Round(time.Hour))
+	}
+
+	os.MkdirAll("data", 0o755)
+	if err := command.FetchAndCacheCabins(s.logger, cabinsPath); err != nil {
+		s.logger.Warn("Failed to refresh cabin cache, continuing with existing data", "error", err)
 	}
 }
