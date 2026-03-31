@@ -24,7 +24,8 @@ func (h *MapShareHandler) Handle(cc *CommandContext) ([]string, error) {
 
 	result, err := formatMapShareOutput(identifier)
 	if err != nil {
-		return nil, err
+		cc.Logger.Error("MapShare error", "identifier", identifier, "error", err)
+		return []string{fmt.Sprintf("MapShare error: %v", err)}, nil
 	}
 
 	return []string{result}, nil
@@ -33,7 +34,7 @@ func (h *MapShareHandler) Handle(cc *CommandContext) ([]string, error) {
 func formatMapShareOutput(identifier string) (string, error) {
 	data, err := fetchAndParseMapShareKML(identifier)
 	if err != nil {
-		return "Ingen data tilgjengelig.", nil
+		return "", err
 	}
 
 	name := data.Name
@@ -83,18 +84,29 @@ type mapShareData struct {
 }
 
 func fetchAndParseMapShareKML(identifier string) (*mapShareData, error) {
-	url := "https://share.garmin.com/Feed/Share/" + identifier
+	kmlURL := "https://share.garmin.com/Feed/Share/" + identifier
 
 	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Get(url)
+	req, err := http.NewRequest("GET", kmlURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("User-Agent", "InReachAssistant/1.0")
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetching KML: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Parse KML XML
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("MapShare returned HTTP %d for %s", resp.StatusCode, identifier)
+	}
+
+	// KML uses namespace http://www.opengis.net/kml/2.2
+	const ns = "http://www.opengis.net/kml/2.2"
+
 	var kml struct {
-		XMLName  xml.Name `xml:"kml"`
 		Document struct {
 			Folder struct {
 				Placemarks []struct {
