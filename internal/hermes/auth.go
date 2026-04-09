@@ -435,6 +435,12 @@ func (a *HermesAuth) refreshHermesTokenLocked(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == 401 || resp.StatusCode == 403 {
+		a.logger.Error("Token refresh rejected by Garmin (401/403). Registration may have been invalidated by another client login. Run 'inreach login' to re-authenticate.",
+			"status", resp.StatusCode)
+		return fmt.Errorf("registration invalidated (HTTP %d): run 'inreach login' to re-authenticate", resp.StatusCode)
+	}
+
 	if err := checkResponse(resp); err != nil {
 		return err
 	}
